@@ -388,7 +388,13 @@
               <div class="questionBlock">
                 <p class="questionText">{{ question.text }}</p>
                 {% if question.type == 'numeric' %}
-                  <input type="number" name="{{ question.fieldName }}" {% if question.required %}data-required="true"{% endif %}>
+                  <input type="number" name="{{ question.fieldName }}" step="1" inputmode="numeric"
+                    {% if question.min is defined %}min="{{ question.min }}"{% endif %}
+                    {% if question.max is defined %}max="{{ question.max }}"{% endif %}
+                    {% if question.required %}data-required="true"{% endif %}>
+                  {% if question.helperText %}
+                    <p class="sectionNote">{{ question.helperText }}</p>
+                  {% endif %}
                 {% elif question.type == 'openText' %}
                   <textarea name="{{ question.fieldName }}" {% if question.required %}data-required="true"{% endif %}></textarea>
                 {% elif question.type == 'multiChoice' %}

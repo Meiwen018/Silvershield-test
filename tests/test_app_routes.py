@@ -463,6 +463,21 @@ def test_pre_survey_requires_consent(app_client):
     assert "consent" in response.get_data(as_text=True).lower()
 
 
+def test_pre_survey_requires_participant_to_be_at_least_60(app_client):
+    client, app_module, db_path = app_client
+    _seed_user(db_path, username="alice")
+
+    with client.session_transaction() as session:
+        session["username"] = "alice"
+
+    submission = _build_survey_submission(app_module, db_path, "alice", "pre")
+    submission["D1"] = "59"
+    response = client.post("/pre_survey", data=submission)
+
+    assert response.status_code == 200
+    assert "60" in response.get_data(as_text=True)
+
+
 def test_post_survey_completes_training_flow_and_saves_usability_score(app_client, monkeypatch):
     client, app_module, db_path = app_client
     _seed_user(db_path, username="alice")

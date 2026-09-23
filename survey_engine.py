@@ -333,6 +333,28 @@ def validate_submission(form_data, survey_model):
         elif question.get("required", True) and answer == "":
             validation_error = _("Please answer every required survey question before continuing.")
             break
+
+        if question["type"] == "numeric" and answer != "":
+            try:
+                numeric_answer = int(answer)
+            except (TypeError, ValueError):
+                validation_error = _("Please enter a whole number.")
+                break
+
+            minimum = question.get("min")
+            maximum = question.get("max")
+            if minimum is not None and numeric_answer < int(minimum):
+                validation_error = _(
+                    "This study is for adults age %(minimum)s and older.",
+                    minimum=minimum,
+                )
+                break
+            if maximum is not None and numeric_answer > int(maximum):
+                validation_error = _(
+                    "Please enter an age no greater than %(maximum)s.",
+                    maximum=maximum,
+                )
+                break
         answers[question["questionId"]] = answer
 
     if validation_error:
