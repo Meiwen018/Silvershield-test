@@ -25,7 +25,10 @@
           {
             "questionId": "D1",
             "type": "numeric",
-            "text": "What is your age?"
+            "text": "What is your age?",
+            "min": 60,
+            "max": 120,
+            "helperText": "Silver Shield is designed for adults age 60 and older."
           },
           {
             "questionId": "D2",
