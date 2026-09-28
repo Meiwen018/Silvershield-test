@@ -137,6 +137,9 @@ MODULE_ASSESSMENT_QUESTION_BANKS = {
             "options": ["real", "fake"],
             "correct": "fake"
         },
+
+       
+
         {"id": 6, "channel": "chrome", "difficulty": 1, "prompt": "Top search result says IRS payment portal and links to irs-payment-help.net with a Sponsored label. Is this real or fake?", "options": ["real", "fake"], "correct": "fake"},
         {"id": 7, "channel": "chrome", "difficulty": 2, "prompt": "Chrome warning page states Deceptive site ahead for a domain you tried to open. Is this real or fake?", "options": ["real", "fake"], "correct": "real"},
         {"id": 8, "channel": "chrome", "difficulty": 2, "prompt": "Browser popup claims your computer is infected and asks you to call support immediately to avoid data loss. Is this real or fake?", "options": ["real", "fake"], "correct": "fake"},
@@ -541,7 +544,7 @@ def pre_survey():
         return redirect('/login')
 
     if _has_completed_survey(username, 'pre_survey'):
-        return redirect('/dashboard')
+        return redirect('/dashboard') 
 
     survey_model = build_survey_view_model(DB_PATH, username, 'pre')
     if request.method == 'POST':
@@ -1026,7 +1029,10 @@ Rules:
     }
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b",
+        "reasoning_effort": "low",
+    "include_reasoning": False,
+    "max_completion_tokens": 2048,
         "messages": [{"role": "user", "content": prompt}]
     }
 
@@ -1305,7 +1311,7 @@ Generate a NEW realistic LEGITIMATE email now. Do NOT write a phishing or scam e
     }
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
         "messages": [{"role": "user", "content": prompt}]
     }
 
@@ -1402,7 +1408,7 @@ Write feedback and clues in {output_language}.
 Respond ONLY with valid JSON, no markdown:
 {{"correct": {'true' if is_correct else 'false'}, "feedback": "explanation here", "clues": ["clue 1", "clue 2"]}}"""
         headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-        payload = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": explain_prompt}]}
+        payload = {"model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048, "messages": [{"role": "user", "content": explain_prompt}]}
         try:
             groq_resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
             raw = groq_resp.json()["choices"][0]["message"]["content"].strip()
@@ -1434,7 +1440,7 @@ You MUST respond with ONLY a JSON object. Use double quotes. No markdown.
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama-3.1-8b-instant",
+            "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
             "messages": [{"role": "user", "content": prompt}]
         }
         groq_resp = requests.post(
@@ -1549,7 +1555,7 @@ def generate_sites():
         for _attempt in range(2):
             try:
                 payload = {
-                    "model": "llama-3.1-8b-instant",
+                    "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
                     "messages": [{"role": "user", "content": prompt_text}]
                 }
                 response = requests.post(
@@ -1686,7 +1692,7 @@ Requirements:
         html = None
         try:
             payload = {
-                "model": "llama-3.1-8b-instant",
+                "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
                 "messages": [{"role": "user", "content": open_prompt}]
             }
             response = requests.post(
@@ -1787,7 +1793,7 @@ Write explanation and clues in {output_language}.
 Respond ONLY with valid JSON, no markdown:
 {{"correct": {'true' if is_correct else 'false'}, "explanation": "explanation here", "clues": ["clue 1", "clue 2"]}}"""
     headers_ai = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-    payload_ai = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": explain_prompt}]}
+    payload_ai = {"model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048, "messages": [{"role": "user", "content": explain_prompt}]}
     try:
         resp_ai = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_ai, json=payload_ai)
         raw_ai = resp_ai.json()["choices"][0]["message"]["content"].strip()
@@ -1940,7 +1946,7 @@ def generate_sms():
     }
 
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
         "messages": [{"role": "user", "content": prompt}]
     }
 
@@ -2085,7 +2091,7 @@ Write caller_name and transcript in {output_language}.
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
         "messages": [{"role": "user", "content": prompt}]
     }
 
@@ -2263,7 +2269,7 @@ Use safe placeholder content only and do not include operationally harmful instr
         html = None
         try:
             payload = {
-                "model": "llama-3.1-8b-instant",
+                "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
                 "messages": [{"role": "user", "content": prompt}]
             }
             response = requests.post(
@@ -2327,7 +2333,7 @@ Requirements:
     web_obj = None
     try:
         payload = {
-            "model": "llama-3.1-8b-instant",
+            "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
             "messages": [{"role": "user", "content": prompt}]
         }
         response = requests.post(
@@ -2477,7 +2483,7 @@ Write feedback and clues in {output_language}.
 Respond ONLY with valid JSON, no markdown:
 {{"correct": {'true' if is_correct_local else 'false'}, "feedback": "explanation here", "clues": ["clue 1", "clue 2"]}}"""
         headers_ex = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-        payload_ex = {"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": explain_prompt}]}
+        payload_ex = {"model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048, "messages": [{"role": "user", "content": explain_prompt}]}
         try:
             r_ex = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_ex, json=payload_ex)
             raw_ex = r_ex.json()["choices"][0]["message"]["content"].strip()
@@ -2522,7 +2528,7 @@ The trainee selected: {choice.upper()} (SCAM vs NOT SCAM)
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama-3.1-8b-instant",
+            "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
             "messages": [{"role": "user", "content": prompt}]
         }
 
