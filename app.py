@@ -6,7 +6,7 @@ import hashlib
 from dotenv import load_dotenv
 import requests
 from database import init_database, TEST_USER_USERNAME
-from user_login import user_registration, verifying_login
+from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
 import json
@@ -933,6 +933,90 @@ def send_otp_route():
     except Exception as e:
         print("Error sending OTP", e)
         return jsonify({"success": False, "message": str(e)})
+
+def _password_is_strong(password):
+    if not isinstance(password, str):
+        return False
+    special = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?`~"
+    return (
+        8 <= len(password) <= 15
+        and any(character.isupper() for character in password)
+        and any(character.islower() for character in password)
+        and any(character.isdigit() for character in password)
+        and any(character in special for character in password)
+    )
+
+@app.route('/forgot_password/send', methods=['POST'])
+def forgot_password_send():
+    username_or_email = (request.form.get('username') or '').strip()
+    if not username_or_email:
+        return jsonify({"success": False, "message": "Enter your username or email"})
+
+    username, phone = find_account(username_or_email)
+    if not username or not phone:
+        return jsonify({"success": False, "message": "No account found for that username or email"})
+
+    if username == TEST_USER_USERNAME:
+        return jsonify({
+            "success": False,
+            "message": "The demo account cannot receive a text code, so its password stays the same.",
+        })
+
+    if not phone.startswith("+"):
+        phone = "+1" + phone
+
+    session.pop("reset_verified", None)
+    session["reset_username"] = username
+
+    try:
+        send_otp(phone)
+    except Exception as e:
+        session.pop("reset_username", None)
+        return jsonify({"success": False, "message": str(e)})
+
+    return jsonify({"success": True, "otp_sent": True, "phone": phone})
+
+@app.route('/forgot_password/verify', methods=['POST'])
+def forgot_password_verify():
+    username = session.get("reset_username")
+    if not username:
+        return jsonify({"success": False, "message": "Request a reset code first"})
+
+    phone = (request.form.get('phone') or '').strip()
+    code = (request.form.get('code') or '').strip()
+    if not phone.startswith("+"):
+        phone = "+1" + phone
+
+    try:
+        approved = verify_otp(phone, code)
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    if not approved:
+        return jsonify({"success": False, "message": "OTP not verified"})
+
+    session["reset_verified"] = True
+    return jsonify({"success": True, "message": "OTP verified"})
+
+@app.route('/forgot_password/update', methods=['POST'])
+def forgot_password_update():
+    username = session.get("reset_username")
+    if not username or not session.get("reset_verified"):
+        return jsonify({"success": False, "message": "Verify the text code before choosing a new password"})
+
+    password = request.form.get('password') or ''
+    if not _password_is_strong(password):
+        return jsonify({
+            "success": False,
+            "message": "Password must be 8 to 15 characters and include an uppercase letter, a lowercase letter, a number, and a special character",
+        })
+
+    if not update_password(username, password):
+        return jsonify({"success": False, "message": "Could not update that account"})
+
+    session.pop("reset_username", None)
+    session.pop("reset_verified", None)
+    return jsonify({"success": True, "message": "Password updated. Log in with your new password."})
 
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp_route():
