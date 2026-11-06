@@ -3,14 +3,12 @@ import os
 import sqlite3
 import random
 import hashlib
-import secrets
 from dotenv import load_dotenv
 import requests
-from database import init_database, TEST_USER_USERNAME
+from database import init_database, TEST_USER_USERNAME, create_guest_session, is_guest_username
 from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
-from werkzeug.security import generate_password_hash
 import json
 from datetime import datetime, timezone
 import time
@@ -34,34 +32,6 @@ DB_PATH = os.getenv("DB_PATH", "silvershieldDatabase.db")
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 init_database()
-
-
-def create_guest_account():
-    """Create one anonymous participant record for an in-person survey session."""
-    for _ in range(5):
-        guest_id = secrets.token_hex(8)
-        username = f"guest{guest_id}"
-        try:
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.execute(
-                    """
-                    INSERT INTO users (username, email, phone, address, password_hash)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        username,
-                        f"{username}@silvershield.local",
-                        f"guest-{guest_id}",
-                        "Anonymous survey participant",
-                        generate_password_hash(secrets.token_urlsafe(24)),
-                    ),
-                )
-            return username
-        except sqlite3.IntegrityError:
-            # A newly generated anonymous ID almost never collides, but retry safely.
-            continue
-
-    raise RuntimeError("Could not create an anonymous guest account")
 
 # Babel locale selector
 def select_locale():
@@ -638,9 +608,13 @@ def account_creation():
 @app.route('/guest-session', methods=['POST'])
 def guest_session():
     """Start an anonymous survey session without collecting contact information."""
+    consent = (request.form.get('consent') or '').strip().lower()
+    if consent != 'yes':
+        return jsonify(success=False, message="Please agree before continuing as a guest."), 400
+
     try:
-        username = create_guest_account()
-    except RuntimeError:
+        username = create_guest_session(True)
+    except (RuntimeError, ValueError):
         return jsonify(success=False, message="Could not start a guest session. Please try again."), 500
 
     session['username'] = username
@@ -929,6 +903,9 @@ def register():
 def login_post():
     usernameorEmail = request.form['username'].strip()
     password = request.form['password'].strip()
+
+    if is_guest_username(usernameorEmail):
+        return jsonify({"success": False, "message": "Guest sessions cannot be reopened after they end."})
 
     valid, phone, canonical_username = verifying_login(usernameorEmail, password)
 

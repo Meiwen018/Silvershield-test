@@ -19,7 +19,12 @@
 
 <section class="guest-entry" aria-labelledby="guest-heading">
 <h2 id="guest-heading">{{ _("Taking the survey in person?") }}</h2>
-<p>{{ _("Continue anonymously without a phone number or OTP.") }}</p>
+<p>{{ _("Continue anonymously without a phone number, email, or OTP. Your answers and training progress are saved under a random guest ID.") }}</p>
+<label class="guest-consent-label" for="guest-consent">
+<input type="checkbox" id="guest-consent">
+{{ _("I agree to take part and to have my anonymous study data saved.") }}
+</label>
+<div id="guest-error" class="error-message" role="alert"></div>
 <button id="guest-session-btn" class="btn" type="button">
 {{ _("Continue as Guest") }}
 </button>

@@ -46,6 +46,20 @@
   width: 100%;
 }
 
+.guest-consent-label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.guest-consent-label input {
+  width: auto;
+  margin: 3px 0 0;
+}
+
 .guest-divider {
   display: flex;
   align-items: center;

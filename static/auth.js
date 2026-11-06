@@ -19,6 +19,8 @@ const verifyOTPBtn = document.getElementById("verify-otp-btn");
 const otpSection = document.getElementById("otp-section");
 const otpError = document.getElementById("otp-error");
 const guestSessionButton = document.getElementById("guest-session-btn");
+const guestConsent = document.getElementById("guest-consent");
+const guestError = document.getElementById("guest-error");
 
 /* Login elements */
 const loginSlides = document.querySelectorAll(".login-slide")
@@ -45,12 +47,22 @@ let currentSlide = 1;
 if (guestSessionButton)
 {
     guestSessionButton.addEventListener("click", async () => {
+        if (!guestConsent || !guestConsent.checked)
+        {
+            guestError.textContent = "Please agree before continuing as a guest.";
+            return;
+        }
+
+        guestError.textContent = "";
         guestSessionButton.disabled = true;
         guestSessionButton.textContent = "Starting guest session...";
 
         try
         {
-            const response = await fetch("/guest-session", { method: "POST" });
+            const response = await fetch("/guest-session", {
+                method: "POST",
+                body: new URLSearchParams({consent: "yes"})
+            });
             const result = await response.json();
 
             if (result.success)
@@ -68,6 +80,50 @@ if (guestSessionButton)
 
         guestSessionButton.disabled = false;
         guestSessionButton.textContent = "Continue as Guest";
+    });
+}
+
+const guestStart = document.getElementById("guest-start");
+const guestBack = document.getElementById("guest-back");
+const guestConfirm = document.getElementById("guest-confirm");
+const loginGuestConsent = document.getElementById("login-guest-consent");
+const loginGuestError = document.getElementById("login-guest-error");
+
+if (guestStart)
+{
+    guestStart.addEventListener("click", () => showLoginSlide(5));
+}
+
+if (guestBack)
+{
+    guestBack.addEventListener("click", () => {
+        loginGuestError.textContent = "";
+        showLoginSlide(1);
+    });
+}
+
+if (guestConfirm)
+{
+    guestConfirm.addEventListener("click", async () => {
+        if (!loginGuestConsent.checked)
+        {
+            loginGuestError.textContent = "Please agree before continuing as a guest.";
+            return;
+        }
+
+        const response = await fetch("/guest-session", {
+            method: "POST",
+            body: new URLSearchParams({consent: "yes"})
+        });
+        const result = await response.json();
+
+        if (!result.success)
+        {
+            loginGuestError.textContent = result.message || "Could not start a guest session.";
+            return;
+        }
+
+        window.location.href = result.redirect_url;
     });
 }
 
