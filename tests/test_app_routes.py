@@ -98,6 +98,33 @@ def test_register_and_login_flow(app_client):
     assert login_payload["otp_sent"] is True
 
 
+def test_guest_session_creates_an_anonymous_participant(app_client):
+    client, _, db_path = app_client
+
+    response = client.post("/guest-session")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["redirect_url"].endswith("/pre_survey")
+
+    with client.session_transaction() as session_data:
+        username = session_data["username"]
+        assert username.startswith("guest")
+        assert session_data["is_guest"] is True
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT email, phone, address FROM users WHERE username = ?", (username,)
+        ).fetchone()
+
+    assert row == (
+        f"{username}@silvershield.local",
+        f"guest-{username.removeprefix('guest')}",
+        "Anonymous survey participant",
+    )
+
+
 def test_forgot_password_updates_only_after_otp(app_client):
     client, _, _ = app_client
 

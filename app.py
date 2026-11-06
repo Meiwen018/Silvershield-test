@@ -3,12 +3,14 @@ import os
 import sqlite3
 import random
 import hashlib
+import secrets
 from dotenv import load_dotenv
 import requests
 from database import init_database, TEST_USER_USERNAME
 from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
+from werkzeug.security import generate_password_hash
 import json
 from datetime import datetime, timezone
 import time
@@ -32,6 +34,34 @@ DB_PATH = os.getenv("DB_PATH", "silvershieldDatabase.db")
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 init_database()
+
+
+def create_guest_account():
+    """Create one anonymous participant record for an in-person survey session."""
+    for _ in range(5):
+        guest_id = secrets.token_hex(8)
+        username = f"guest{guest_id}"
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    """
+                    INSERT INTO users (username, email, phone, address, password_hash)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        username,
+                        f"{username}@silvershield.local",
+                        f"guest-{guest_id}",
+                        "Anonymous survey participant",
+                        generate_password_hash(secrets.token_urlsafe(24)),
+                    ),
+                )
+            return username
+        except sqlite3.IntegrityError:
+            # A newly generated anonymous ID almost never collides, but retry safely.
+            continue
+
+    raise RuntimeError("Could not create an anonymous guest account")
 
 # Babel locale selector
 def select_locale():
@@ -605,6 +635,19 @@ def account_creation():
     return render_template("accountCreation.html")
 
 
+@app.route('/guest-session', methods=['POST'])
+def guest_session():
+    """Start an anonymous survey session without collecting contact information."""
+    try:
+        username = create_guest_account()
+    except RuntimeError:
+        return jsonify(success=False, message="Could not start a guest session. Please try again."), 500
+
+    session['username'] = username
+    session['is_guest'] = True
+    return jsonify(success=True, redirect_url=url_for('pre_survey'))
+
+
 @app.route('/dashboard')
 def dashboard():
     username = session.get('username')
@@ -874,6 +917,7 @@ def register():
     success, message = user_registration(username, password, email, phone, address)
     if success:
         session['username'] = username
+        session.pop('is_guest', None)
         return jsonify(success=True, message=message, redirect_url=url_for('pre_survey'))
     return jsonify(success=False, message=message)
 
@@ -893,6 +937,7 @@ def login_post():
 
     # Storing logged in user for session
     session["username"] = canonical_username
+    session.pop('is_guest', None)
 
     if canonical_username == TEST_USER_USERNAME:
         return jsonify({

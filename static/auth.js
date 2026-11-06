@@ -18,6 +18,7 @@ const sendOTPBtn = document.getElementById("send-otp-btn");
 const verifyOTPBtn = document.getElementById("verify-otp-btn");
 const otpSection = document.getElementById("otp-section");
 const otpError = document.getElementById("otp-error");
+const guestSessionButton = document.getElementById("guest-session-btn");
 
 /* Login elements */
 const loginSlides = document.querySelectorAll(".login-slide")
@@ -40,6 +41,35 @@ let loginPurpose = "login";
 let currentPhoneReg = "";
 let currentPhoneLogin = "";
 let currentSlide = 1;
+
+if (guestSessionButton)
+{
+    guestSessionButton.addEventListener("click", async () => {
+        guestSessionButton.disabled = true;
+        guestSessionButton.textContent = "Starting guest session...";
+
+        try
+        {
+            const response = await fetch("/guest-session", { method: "POST" });
+            const result = await response.json();
+
+            if (result.success)
+            {
+                window.location.href = result.redirect_url;
+                return;
+            }
+
+            alert(result.message || "Could not start a guest session. Please try again.");
+        }
+        catch (error)
+        {
+            alert("Could not start a guest session. Please try again.");
+        }
+
+        guestSessionButton.disabled = false;
+        guestSessionButton.textContent = "Continue as Guest";
+    });
+}
 
 /*************************
      Slide functions

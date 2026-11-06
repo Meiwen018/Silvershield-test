@@ -17,6 +17,16 @@
 <div class="account-center">
 <div class="account-creation-wrapper">
 
+<section class="guest-entry" aria-labelledby="guest-heading">
+<h2 id="guest-heading">{{ _("Taking the survey in person?") }}</h2>
+<p>{{ _("Continue anonymously without a phone number or OTP.") }}</p>
+<button id="guest-session-btn" class="btn" type="button">
+{{ _("Continue as Guest") }}
+</button>
+</section>
+
+<div class="guest-divider" aria-hidden="true">{{ _("or create an account") }}</div>
+
 <form class="account-form" id="signupForm">
 
 <div class="account-form-group slide active" id="slide1">
@@ -193,7 +203,7 @@ placeholder="{{ _('Zip Code') }}" required>
 </div>
 </div>
 
-<script src="{{ url_for('static', filename='auth.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='auth.js') }}?v=3"></script>
 
 </body>
 </html>
