@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, flash, session, redirect, url_for, send_file, abort
 import os
 import sqlite3
+from db_connection import connect as db_connect, using_postgres, insert_id
 import random
 import hashlib
 from dotenv import load_dotenv
@@ -195,7 +196,7 @@ def _get_module_redirect(module_name):
 
 
 def _is_module_phase_complete(username, module_name, phase):
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(
             '''SELECT COUNT(*)
@@ -216,7 +217,7 @@ def _is_module_phase_complete(username, module_name, phase):
 
 
 def _get_or_create_module_variant(username, module_name):
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(
             '''SELECT variant
@@ -272,7 +273,7 @@ def _ensure_module_question_assignments(username, module_name):
     bank = _get_module_question_bank(module_name)
     expected_total = len(bank)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(
             '''SELECT question_id, phase
@@ -313,7 +314,7 @@ def _ensure_module_question_assignments(username, module_name):
 def _get_module_phase_questions(username, module_name, phase):
     question_map = _get_module_question_map(module_name)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(
             '''SELECT question_id
@@ -356,7 +357,7 @@ def _require_module_pretest(module_name):
     if not username:
         return redirect('/login')
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute("SELECT 1 FROM pre_survey WHERE username = ?", (username,))
         if not cur.fetchone():
@@ -378,7 +379,7 @@ def _is_module_training_complete(username, module_name):
 
     placeholders = ",".join("?" for _ in required_progress_keys)
     params = [username] + required_progress_keys
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(
             f'''SELECT module_name, scenarios_completed
@@ -421,7 +422,7 @@ def _build_module_posttest_context(username, module_name):
     }
 
 def _has_completed_survey(username, table_name):
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT 1 FROM {table_name} WHERE username = ? LIMIT 1", (username,))
         return cur.fetchone() is not None
@@ -524,7 +525,7 @@ def get_difficulty(category):
     if not username:
         return 1
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(f'SELECT {category} FROM users WHERE username = ?', (username,))
         row = cursor.fetchone()
@@ -543,7 +544,7 @@ def set_difficulty(category, level):
     if not username:
         return
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute(f'UPDATE users SET {category} = ? WHERE username = ?', (level, username))
         conn.commit()
@@ -628,7 +629,7 @@ def dashboard():
     if not username:
         return redirect('/login')
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with db_connect(DB_PATH) as conn:
         cur = conn.cursor()
         cur.execute("SELECT 1 FROM pre_survey WHERE username = ?", (username,))
         pre_survey_done = cur.fetchone() is not None
@@ -711,11 +712,7 @@ def system_usability_survey():
     return redirect('/dashboard')
 @app.route("/reset_presurvey")
 def reset_presurvey():
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute("DROP TABLE IF EXISTS pre_survey")
-        conn.commit()
-    return "pre_survey table dropped. Restart the server now."
+    abort(404)
 
 
 @app.route('/admin/download-db', methods=['GET'])
@@ -724,6 +721,15 @@ def download_database():
 
     if not DB_DOWNLOAD_TOKEN or token != DB_DOWNLOAD_TOKEN:
         abort(403)
+
+    if using_postgres():
+        from db_connection import export_records
+        from io import BytesIO
+        snapshot = json.dumps(export_records(), default=str, ensure_ascii=False).encode('utf-8')
+        response = send_file(BytesIO(snapshot), mimetype='application/json',
+                             as_attachment=True, download_name='Survey.json')
+        response.headers['Cache-Control'] = 'no-store'
+        return response
 
     if not os.path.exists(DB_PATH):
         return jsonify({"success": False, "error": "Database file not found"}), 404
@@ -943,7 +949,7 @@ def check_username():
     if not username:
         return jsonify({"exists": False})
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
         exists = cursor.fetchone() is not None
@@ -957,7 +963,7 @@ def check_email():
     if not email:
         return jsonify({"exists": False})
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM users WHERE email = ?", (email,))
         exists = cursor.fetchone() is not None
@@ -1204,15 +1210,13 @@ def start_phone_roleplay_session():
 
     started_at = datetime.now(timezone.utc).isoformat()
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        session_id = insert_id(cursor, """
             INSERT INTO phone_roleplay_sessions
             (username, scenario_type, difficulty_level, started_at)
             VALUES (?, ?, ?, ?)
         """, (username, scenario_type, difficulty_level, started_at))
-        conn.commit()
-        session_id = cursor.lastrowid
 
         cursor.execute("""
             INSERT INTO phone_roleplay_results (session_id)
@@ -1237,7 +1241,7 @@ def log_phone_roleplay_event():
 
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO phone_roleplay_events
@@ -1268,7 +1272,7 @@ def finish_phone_roleplay_session():
 
     ended_at = datetime.now(timezone.utc).isoformat()
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -1327,7 +1331,7 @@ def phone_roleplay_progress_summary():
     if not username:
         return jsonify({"success": False, "error": "Not logged in"}), 401
 
-    with sqlite3.connect("silvershieldDatabase.db") as conn:
+    with db_connect("silvershieldDatabase.db") as conn:
         cursor = conn.cursor()
 
         cursor.execute("""
